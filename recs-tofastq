@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import sys, errno, json, argparse, textwrap, re
+
+class ToFastQ:
+    __version__ = '0.0.1'
+
+    def __init__(self, args):
+        opts = ToFastQ.parse_options(args)
+
+        self.encode_quality = opts['encode_quality']
+
+        if len(opts['files']):
+            self.input = [ open(filename, "rU") for filename in opts['files'] ]
+        else:
+            self.input = [ sys.stdin ]
+
+    def run(self):
+        for handle in self.input:
+            for line in handle:
+                self.accept_record(json.loads(line))
+
+    def accept_record(self, record):
+        if (self.encode_quality and 'quality' in record):
+            record['quality'] = ''.join([ chr(q + 33) for q in record['quality'] ])
+
+        for k in ['name', 'sequence', 'quality']:
+            record[k] = re.sub(r'[\r\n]', '', str(record[k]))
+
+        self.push_line("@%s\n%s\n+\n%s" % (record['name'], record['sequence'], record['quality']))
+
+    def push_line(self, line):
+        try:
+            print line
+        except IOError as e:
+            if e.errno == errno.EPIPE:
+                sys.exit()
+            else:
+                raise e
+
+    @classmethod
+    def parse_options(this, args):
+        parser = argparse.ArgumentParser(
+            description = textwrap.dedent('''\
+                Outputs a FastQ sequence for each record using the fields name,
+                sequence, and quality.  These match the fields produced by
+                fromfastq.
+
+                This command is part of the App::RecordStream (recs) system.
+                See https://recs.pl for more information.
+            '''),
+            epilog = textwrap.dedent('''\
+                version %s
+                Copyright 2015 by Thomas Sibley <trsibley@uw.edu>
+                Mullins Lab - Dept. of Microbiology
+                University of Washington
+            ''' % this.__version__),
+            formatter_class = BetterFormatter)
+
+        parser.add_argument("files",
+            help     = "record stream input files",
+            nargs    = "*",
+            metavar  = "file")
+
+        parser.add_argument("-Q", "--encode-quality",
+            action   = "store_true",
+            dest     = "encode_quality",
+            help     = "Encode a Phred+33 quality string from integer scores in the quality field")
+
+        return vars(parser.parse_args(args))
+
+class BetterFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
+
+if __name__ == '__main__':
+    ToFastQ(sys.argv[1:]).run()
