@@ -44,6 +44,8 @@
 
 ["A set of programs for creating, manipulating, and outputing a stream of Records, or JSON hashes."](https://metacpan.org/pod/App::RecordStream)
 
+For other bioinformatics-related recs commands, see [App::RecordStream::Bio](https://metacpan.org/pod/App::RecordStream::Bio).
+
 # Installation
 
 recs-fastq requires Python 2.7 and BioPython.  You can install BioPython by
